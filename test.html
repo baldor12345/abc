@@ -97,6 +97,24 @@
         #loadingSpinner.hidden {
             display: none; /* Oculta el spinner cuando ya no se necesita */
         }
+
+        #overlay {
+            position: absolute;
+            background-color: black;
+            z-index: 2; /* Asegura que esté por encima del video (ajusta si es necesario) */
+        
+            /* Ajusta estas propiedades para la posición y tamaño del rectángulo */
+            top: 10%;      /* Ejemplo: 10% desde la parte superior */
+            left: 5%;     /* Ejemplo: 5% desde la izquierda */
+            width: 20%;    /* Ejemplo: 20% del ancho del contenedor */
+            height: 15%;   /* Ejemplo: 15% del alto del contenedor */
+        
+            /* O si conoces las dimensiones exactas en píxeles: */
+            /* top: 50px; */
+            /* left: 30px; */
+            /* width: 150px; */
+            /* height: 80px; */
+        }
     </style>
 </head>
 <body>
@@ -110,6 +128,7 @@
             <button id="volumeButton">🔊</button>
             <input type="range" id="volumeRange" min="0" max="1" step="0.01" value="0">
         </div>
+        <div id="overlay"></div>
     </div>
 
     <script>
