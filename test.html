@@ -127,13 +127,13 @@
         const loadingSpinner = document.getElementById('loadingSpinner');
         const customControls = document.getElementById('customControls');
         const overlay = document.getElementById('overlay'); // Referencia al overlay
-        const hlsSource = 'https://miami.crackstreamslivehd.com/eventos8/tracks-v1a1/mono.m3u8?ip=190.237.74.91&token=042dc8d76dab4cb8bf187387eb60208ba0a6c744-53-1748148302-1748115902';
+        const hlsSource = 'https://live-evg1.tv360.bitel.com.pe/bitel/americatv/playlist.m3u8';
 
         // --- Configuración de la posición y tamaño del overlay (como porcentajes del video original) ---
         // Estos valores son cruciales. Necesitas ajustarlos según la posición real de la zona roja.
         // Son porcentajes del *ancho y alto intrínseco del video* (no del reproductor ni de la pantalla).
         const OVERLAY_CONFIG = {
-            relativeLeft: 0.05,  // 5% del ancho del video desde la izquierda
+            relativeLeft: 0.65,  // 5% del ancho del video desde la izquierda
             relativeTop: 0.10,   // 10% del alto del video desde la parte superior
             relativeWidth: 0.20, // 20% del ancho del video
             relativeHeight: 0.15 // 15% del alto del video
