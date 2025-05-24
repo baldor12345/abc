@@ -3,96 +3,72 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Reproductor de Video a Pantalla Completa</title>
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
     <style>
-        /* Estilos CSS para hacer que el video ocupe toda la pantalla */
         html, body {
             margin: 0;
             padding: 0;
             width: 100%;
             height: 100%;
-            overflow: hidden; /* Evita barras de desplazamiento si el video se desborda un poco */
-            background-color: black; /* Opcional: fondo negro para rellenar si hay pequeños márgenes */
+            overflow: hidden;
+            background-color: black;
         }
 
         #videoContainer {
-            position: relative; /* Necesario para posicionar el video dentro */
+            position: relative;
             width: 100%;
             height: 100%;
-            display: flex; /* Para centrar el video si la relación de aspecto es diferente */
+            display: flex;
             justify-content: center;
             align-items: center;
             background-color: black;
         }
 
         #videoPlayer {
-            width: 100%; /* Ocupa el 100% del ancho del contenedor */
-            height: 100%; /* Ocupa el 100% del alto del contenedor */
-            object-fit: contain; /* Ajusta el video para que quepa en el contenedor sin recortarse, manteniendo su relación de aspecto. */
-                              /* Puedes usar 'cover' si quieres que cubra todo el espacio, pero esto podría recortar los bordes. */
-            background-color: black; /* Para evitar que se vean espacios blancos si el video no llena exactamente */
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            background-color: black;
         }
     </style>
 </head>
 <body>
-
     <div id="videoContainer">
         <video id="videoPlayer" controls preload="metadata"></video>
     </div>
-
-
     <script>
-        // Tu código JavaScript para HLS.js va aquí, como el ejemplo anterior
         const video = document.getElementById('videoPlayer');
-        const hlsSource = 'https://miami.crackstreamslivehd.com/eventos8/tracks-v1a1/mono.m3u8?ip=190.237.74.91&token=042dc8d76dab4cb8bf187387eb60208ba0a6c744-53-1748148302-1748115902'; // Tu URL .m3u8
-
+        const hlsSource = 'https://miami.crackstreamslivehd.com/eventos8/tracks-v1a1/mono.m3u8?ip=190.237.74.91&token=042dc8d76dab4cb8bf187387eb60208ba0a6c744-53-1748148302-1748115902';
         if (Hls.isSupported()) {
             const hls = new Hls();
             hls.loadSource(hlsSource);
             hls.attachMedia(video);
             hls.on(Hls.Events.MANIFEST_PARSED, function() {
-                // Intenta reproducir el video. Considera añadir muted="true" en la etiqueta video
-                // si quieres autoplay sin interacción del usuario en la mayoría de los navegadores.
                 video.play().catch(e => {
-                    console.error("Autoplay prevented:", e);
-                    // Opcional: mostrar un botón de "Play" si el autoplay falla
                 });
             });
-            // Opcional: Manejo de errores de HLS.js para depuración
             hls.on(Hls.Events.ERROR, function (event, data) {
-                console.error("HLS.js error:", data);
                 if (data.fatal) {
                     switch(data.type) {
                         case Hls.ErrorTypes.NETWORK_ERROR:
-                            // Try to recover network error
-                            console.log("fatal network error, trying to recover");
                             hls.startLoad();
                             break;
                         case Hls.ErrorTypes.MEDIA_ERROR:
-                            console.log("fatal media error, trying to recover");
                             hls.recoverMediaError();
                             break;
                         default:
-                            // Cannot recover
                             hls.destroy();
                             break;
                     }
                 }
             });
         } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-            // Safari y otros navegadores que soportan HLS de forma nativa
             video.src = hlsSource;
             video.addEventListener('loadedmetadata', function() {
                 video.play().catch(e => {
-                    console.error("Autoplay prevented (native):", e);
                 });
             });
-        } else {
-            console.error('Tu navegador no soporta HLS.');
-            // Aquí podrías mostrar un mensaje al usuario
         }
     </script>
-
 </body>
 </html>
