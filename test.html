@@ -210,6 +210,12 @@
             hideLoader(); // Ocultar loader si el navegador no soporta nada
         }
 
+        // --- Eventos para redimensionar y posicionar el overlay ---
+        // Se llama cuando los metadatos del video (incluyendo sus dimensiones intrínsecas) estén cargados
+        video.addEventListener('loadedmetadata', updateOverlayPosition);
+        // Se llama cada vez que la ventana del navegador cambia de tamaño
+        window.addEventListener('resize', updateOverlayPosition);
+
         // --- Lógica para el Control de Volumen Personalizado (sin cambios) ---
         volumeRange.value = video.volume;
         updateVolumeIcon();
