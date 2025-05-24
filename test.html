@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Reproductor de Video con Carga</title>
+    <title>Reproductor de Video con Carga y Overlay Adaptable</title>
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
     <style>
         html, body {
@@ -28,11 +28,10 @@
         #videoPlayer {
             width: 100%;
             height: 100%;
-            object-fit: contain; /* O 'cover' si prefieres que cubra todo, aunque se recorte */
+            object-fit: contain; /* Esto es clave para la adaptación */
             background-color: black;
-            /* Inicialmente ocultamos el video para que solo se vea el loader */
             opacity: 0;
-            transition: opacity 0.5s ease-in-out; /* Transición suave para cuando aparezca */
+            transition: opacity 0.5s ease-in-out;
         }
 
         /* Estilos para los controles personalizados */
@@ -48,15 +47,14 @@
             align-items: center;
             gap: 10px;
             z-index: 10;
-            /* Inicialmente ocultamos los controles */
             opacity: 0;
             transition: opacity 0.3s ease-in-out;
-            pointer-events: none; /* Deshabilita interacciones mientras está oculto */
+            pointer-events: none;
         }
 
         #customControls.visible {
             opacity: 1;
-            pointer-events: auto; /* Habilita interacciones cuando es visible */
+            pointer-events: auto;
         }
 
         #volumeButton {
@@ -82,11 +80,11 @@
             transform: translate(-50%, -50%);
             width: 50px;
             height: 50px;
-            border: 5px solid rgba(255, 255, 255, 0.3); /* Color claro para el borde */
-            border-top: 5px solid white; /* Borde superior más brillante para el efecto de giro */
-            border-radius: 50%; /* Hace que sea un círculo */
-            animation: spin 1s linear infinite; /* Animación de giro */
-            z-index: 11; /* Asegura que esté por encima de todo lo demás */
+            border: 5px solid rgba(255, 255, 255, 0.3);
+            border-top: 5px solid white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            z-index: 11;
         }
 
         @keyframes spin {
@@ -95,25 +93,15 @@
         }
 
         #loadingSpinner.hidden {
-            display: none; /* Oculta el spinner cuando ya no se necesita */
+            display: none;
         }
 
+        /* --- Estilos para el Overlay Negro Adaptable --- */
         #overlay {
             position: absolute;
             background-color: black;
-            z-index: 2; /* Asegura que esté por encima del video (ajusta si es necesario) */
-        
-            /* Ajusta estas propiedades para la posición y tamaño del rectángulo */
-            top: 10%;      /* Ejemplo: 10% desde la parte superior */
-            left: 5%;     /* Ejemplo: 5% desde la izquierda */
-            width: 20%;    /* Ejemplo: 20% del ancho del contenedor */
-            height: 15%;   /* Ejemplo: 15% del alto del contenedor */
-        
-            /* O si conoces las dimensiones exactas en píxeles: */
-            /* top: 50px; */
-            /* left: 30px; */
-            /* width: 150px; */
-            /* height: 80px; */
+            z-index: 2; /* Asegura que esté por encima del video */
+            /* top, left, width, height se establecerán en JavaScript */
         }
     </style>
 </head>
@@ -128,6 +116,7 @@
             <button id="volumeButton">🔊</button>
             <input type="range" id="volumeRange" min="0" max="1" step="0.01" value="0">
         </div>
+
         <div id="overlay"></div>
     </div>
 
@@ -135,22 +124,78 @@
         const video = document.getElementById('videoPlayer');
         const volumeButton = document.getElementById('volumeButton');
         const volumeRange = document.getElementById('volumeRange');
-        const loadingSpinner = document.getElementById('loadingSpinner'); // Referencia al spinner
-        const customControls = document.getElementById('customControls'); // Referencia a los controles
-        // Asegúrate de que esta URL sea la correcta y estable para tu transmisión
+        const loadingSpinner = document.getElementById('loadingSpinner');
+        const customControls = document.getElementById('customControls');
+        const overlay = document.getElementById('overlay'); // Referencia al overlay
         const hlsSource = 'https://miami.crackstreamslivehd.com/eventos8/tracks-v1a1/mono.m3u8?ip=190.237.74.91&token=042dc8d76dab4cb8bf187387eb60208ba0a6c744-53-1748148302-1748115902';
+
+        // --- Configuración de la posición y tamaño del overlay (como porcentajes del video original) ---
+        // Estos valores son cruciales. Necesitas ajustarlos según la posición real de la zona roja.
+        // Son porcentajes del *ancho y alto intrínseco del video* (no del reproductor ni de la pantalla).
+        const OVERLAY_CONFIG = {
+            relativeLeft: 0.05,  // 5% del ancho del video desde la izquierda
+            relativeTop: 0.10,   // 10% del alto del video desde la parte superior
+            relativeWidth: 0.20, // 20% del ancho del video
+            relativeHeight: 0.15 // 15% del alto del video
+        };
 
         // Función para mostrar/ocultar el spinner y los controles
         function showLoader() {
             loadingSpinner.classList.remove('hidden');
-            video.style.opacity = '0'; // Oculta el video
-            customControls.classList.remove('visible'); // Oculta los controles
+            video.style.opacity = '0';
+            customControls.classList.remove('visible');
+            overlay.style.display = 'none'; // Oculta el overlay mientras carga
         }
 
         function hideLoader() {
             loadingSpinner.classList.add('hidden');
-            video.style.opacity = '1'; // Muestra el video
-            customControls.classList.add('visible'); // Muestra los controles
+            video.style.opacity = '1';
+            customControls.classList.add('visible');
+            overlay.style.display = 'block'; // Muestra el overlay una vez que el video está visible
+            updateOverlayPosition(); // Asegura que el overlay se posicione correctamente
+        }
+
+        // Función para calcular y aplicar la posición del overlay
+        function updateOverlayPosition() {
+            if (!video.videoWidth || !video.videoHeight) {
+                // El video aún no tiene sus dimensiones intrínsecas cargadas
+                return;
+            }
+
+            const videoContainerRect = video.getBoundingClientRect(); // Obtiene las dimensiones y posición del elemento <video>
+            const playerWidth = videoContainerRect.width;
+            const playerHeight = videoContainerRect.height;
+            const videoAspectRatio = video.videoWidth / video.videoHeight;
+            const playerAspectRatio = playerWidth / playerHeight;
+
+            let renderedVideoWidth;
+            let renderedVideoHeight;
+            let offsetX = 0; // Espacio horizontal de las barras negras
+            let offsetY = 0; // Espacio vertical de las barras negras
+
+            if (playerAspectRatio > videoAspectRatio) {
+                // Hay barras negras a los lados (pillarboxing)
+                renderedVideoHeight = playerHeight;
+                renderedVideoWidth = playerHeight * videoAspectRatio;
+                offsetX = (playerWidth - renderedVideoWidth) / 2;
+            } else {
+                // Hay barras negras arriba y abajo (letterboxing)
+                renderedVideoWidth = playerWidth;
+                renderedVideoHeight = playerWidth / videoAspectRatio;
+                offsetY = (playerHeight - renderedVideoHeight) / 2;
+            }
+
+            // Calcula la posición y tamaño del overlay en píxeles
+            const overlayLeftPx = offsetX + (OVERLAY_CONFIG.relativeLeft * renderedVideoWidth);
+            const overlayTopPx = offsetY + (OVERLAY_CONFIG.relativeTop * renderedVideoHeight);
+            const overlayWidthPx = OVERLAY_CONFIG.relativeWidth * renderedVideoWidth;
+            const overlayHeightPx = OVERLAY_CONFIG.relativeHeight * renderedVideoHeight;
+
+            // Aplica los estilos al elemento overlay
+            overlay.style.left = `${overlayLeftPx}px`;
+            overlay.style.top = `${overlayTopPx}px`;
+            overlay.style.width = `${overlayWidthPx}px`;
+            overlay.style.height = `${overlayHeightPx}px`;
         }
 
         // --- HLS.js Initialization ---
@@ -159,23 +204,18 @@
             hls.loadSource(hlsSource);
             hls.attachMedia(video);
 
-            // Ocultar el loader cuando el video empieza a reproducirse
             video.addEventListener('playing', hideLoader);
-            // Mostrar el loader si el video se detiene por buffering
             video.addEventListener('waiting', showLoader);
 
             hls.on(Hls.Events.MANIFEST_PARSED, function() {
                 video.play().catch(e => {
                     console.error("Autoplay prevented (HLS.js):", e);
-                    // Si el autoplay es bloqueado, ocultamos el loader para no dejarlo indefinidamente
                     hideLoader();
-                    // Puedes mostrar un mensaje al usuario para que haga clic en play
                 });
             });
 
             hls.on(Hls.Events.ERROR, function (event, data) {
                 console.error("HLS.js error:", data);
-                // Si hay un error fatal, ocultamos el loader para no dejarlo indefinidamente
                 if (data.fatal) {
                     hideLoader();
                     switch(data.type) {
@@ -200,14 +240,13 @@
             video.addEventListener('loadedmetadata', function() {
                 video.play().catch(e => {
                     console.error("Autoplay prevented (native):", e);
-                    hideLoader(); // Si el autoplay es bloqueado, ocultamos el loader
+                    hideLoader();
                 });
             });
-            // Ocultar loader si el video no puede cargarse nativamente
             video.addEventListener('error', hideLoader);
         } else {
             console.error('Tu navegador no soporta HLS.');
-            hideLoader(); // Ocultar loader si el navegador no soporta nada
+            hideLoader();
         }
 
         // --- Eventos para redimensionar y posicionar el overlay ---
@@ -215,6 +254,7 @@
         video.addEventListener('loadedmetadata', updateOverlayPosition);
         // Se llama cada vez que la ventana del navegador cambia de tamaño
         window.addEventListener('resize', updateOverlayPosition);
+
 
         // --- Lógica para el Control de Volumen Personalizado (sin cambios) ---
         volumeRange.value = video.volume;
