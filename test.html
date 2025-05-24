@@ -1,1 +1,39 @@
-<video data-html5-video="" muted="true" preload="metadata" src="blob:https://alldownplay.xyz/dbdf0b6e-85b2-4fdd-bf6d-40d12717a73c"></video>
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reproductor de Video</title>
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+</head>
+<body>
+
+    <h1>Mi Transmisión en Vivo</h1>
+
+    <video id="videoPlayer" controls width="640" height="360" preload="metadata"></video>
+
+    <script>
+        const video = document.getElementById('videoPlayer');
+        const hlsSource = 'https://top2new.newkso.ru/top2/bet7908581/mono.m3u8'; // Tu URL .m3u8
+
+        if (Hls.isSupported()) {
+            const hls = new Hls();
+            hls.loadSource(hlsSource);
+            hls.attachMedia(video);
+            hls.on(Hls.Events.MANIFEST_PARSED, function() {
+                video.play();
+            });
+        } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+            // Safari y otros navegadores que soportan HLS de forma nativa
+            video.src = hlsSource;
+            video.addEventListener('loadedmetadata', function() {
+                video.play();
+            });
+        } else {
+            console.error('Tu navegador no soporta HLS.');
+            // Aquí podrías mostrar un mensaje al usuario
+        }
+    </script>
+
+</body>
+</html>
