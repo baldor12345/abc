@@ -28,13 +28,12 @@
         #videoPlayer {
             width: 100%;
             height: 100%;
-            object-fit: contain; /* Esto es clave para la adaptación */
+            object-fit: contain;
             background-color: black;
             opacity: 0;
             transition: opacity 0.5s ease-in-out;
         }
-
-        /* Estilos para los controles personalizados */
+        
         #customControls {
             position: absolute;
             bottom: 20px;
@@ -71,8 +70,7 @@
             width: 100px;
             height: 5px;
         }
-
-        /* --- Estilos para el Spinner de Carga --- */
+        
         #loadingSpinner {
             position: absolute;
             top: 50%;
@@ -96,26 +94,21 @@
             display: none;
         }
 
-        /* --- Estilos para el Overlay Negro Adaptable --- */
         #overlay {
             position: absolute;
             background-color: red;
-            color: white; /* Color del texto "EN VIVO" */
-            font-weight: bold; /* Opcional: para que el texto sea más impactante */
-            /* Ya no es necesario text-align: center; con flexbox */
+            color: white;
+            font-weight: bold;
             z-index: 2;
             
-            /* Propiedades Flexbox para centrar el contenido (el span) */
-            display: flex; /* Asegura que el contenedor es un flex container */
-            justify-content: center; /* Centrar horizontalmente */
-            align-items: center;     /* Centrar verticalmente */
-            overflow: hidden; /* Importante para que el texto no se salga del rectángulo */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
         }
         
         #overlay span {
-            /* Estas propiedades se establecerán con JavaScript para adaptarse */
-            /* Quitar font-size y white-space: nowrap de aquí */
-            display: block; /* Asegura que el span pueda tomar las dimensiones que le dé JS */
+            display: block;
         }
     </style>
 </head>
@@ -123,14 +116,11 @@
 
     <div id="videoContainer">
         <video id="videoPlayer" preload="metadata" autoplay muted></video>
-
         <div id="loadingSpinner"></div>
-
         <div id="customControls">
             <button id="volumeButton">🔊</button>
-            <input type="range" id="volumeRange" min="0" max="1" step="0.01" value="0">
+            <input type="range" id="volumeRange" min="0" max="1" step="0.01" value="1">
         </div>
-
         <div id="overlay"><span>EN VIVO</span></div>
     </div>
 
