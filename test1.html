@@ -96,7 +96,7 @@
 
         #overlay {
             position: absolute;
-            background-color: black; /* Cambiado de rojo a negro */
+            background-color: black; 
             color: white;
             font-weight: bold;
             z-index: 2;
@@ -105,11 +105,28 @@
             justify-content: center;
             align-items: center;
             overflow: hidden;
-            border-radius: 8px; /* Bordes redondeados */
+            border-radius: 8px; 
         }
         
         #overlay span {
             display: block;
+        }
+
+        /* --- NUEVO: Estilos para el overlay del botón de Play --- */
+        #playOverlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: none; /* Inicialmente oculto */
+            justify-content: center;
+            align-items: center;
+            background-color: rgba(0, 0, 0, 0.5); /* Fondo semi-transparente */
+            z-index: 12; /* Asegura que esté por encima del video y otros elementos */
+            cursor: pointer;
+            color: white;
+            font-size: 60px; /* Tamaño del icono */
         }
     </style>
 </head>
@@ -117,12 +134,20 @@
 
     <div id="videoContainer">
         <video id="videoPlayer" preload="metadata" autoplay></video> 
+
         <div id="loadingSpinner"></div>
         <div id="customControls">
             <button id="volumeButton">🔊</button>
             <input type="range" id="volumeRange" min="0" max="1" step="0.01" value="0">
         </div>
         <div id="overlay"><span>EN VIVO</span></div>
+
+        <div id="playOverlay">
+            <svg fill="#FFFFFF" height="60" viewBox="0 0 24 24" width="60" xmlns="http://www.w3.org/2000/svg">
+                <path d="M8 5v14l11-7z"/>
+                <path d="M0 0h24v24H0z" fill="none"/>
+            </svg>
+        </div>
     </div>
 
     <script>
@@ -133,6 +158,7 @@
         const customControls = document.getElementById('customControls');
         const overlay = document.getElementById('overlay');
         const overlayTextSpan = overlay.querySelector('span');
+        const playOverlay = document.getElementById('playOverlay'); // NUEVO: Referencia al overlay de play
         const hlsSource = 'https://live-evg1.tv360.bitel.com.pe/bitel/americatv/playlist.m3u8';
         
         /*Medidas del cuadro*/
@@ -148,6 +174,7 @@
             video.style.opacity = '0';
             customControls.classList.remove('visible');
             overlay.style.display = 'none';
+            playOverlay.style.display = 'none'; // Asegura que el botón de play esté oculto mientras carga
         }
 
         function hideLoader() {
@@ -156,6 +183,7 @@
             customControls.classList.add('visible');
             overlay.style.display = 'flex'; 
             updateOverlayPosition();
+            // No ocultamos playOverlay aquí, ya que podría necesitar mostrarse si el autoplay falló.
         }
 
         function updateOverlayPosition() {
@@ -195,9 +223,8 @@
             overlay.style.height = `${overlayHeightPx}px`;
 
             if (overlayTextSpan) {
-                let newFontSize = overlayHeightPx * 0.7; 
+                let newFontSize = overlayHeightPx * 0.7;
                 overlayTextSpan.style.whiteSpace = 'nowrap';
-
                 overlayTextSpan.style.fontSize = `${newFontSize}px`;
 
                 if (overlayTextSpan.scrollWidth > overlayWidthPx || overlayTextSpan.scrollHeight > overlayHeightPx) {
@@ -218,13 +245,22 @@
             video.addEventListener('waiting', showLoader);
 
             hls.on(Hls.Events.MANIFEST_PARSED, function() {
-                video.play().catch(e => {
+                video.play().then(() => {
+                    // Si el autoplay funcionó (incluyendo el audio), ocultamos el botón de play
+                    playOverlay.style.display = 'none';
+                    hideLoader(); // Esto asegurará que el video se muestre
+                }).catch(e => {
                     console.error("Autoplay prevented (HLS.js):", e);
-                    // Si el autoplay es bloqueado por el navegador, lo mostramos sin loader y con controles.
-                    // Y establecemos el volumen predeterminado si no está mutado.
-                    hideLoader();
-                    video.volume = 0.5; // O el volumen que desees por defecto
-                    updateVolumeIcon();
+                    hideLoader(); // Hace el video visible, muestra controles
+                    playOverlay.style.display = 'flex'; // Muestra el botón de play para interacción manual
+                    // Establecer un volumen predeterminado si el navegador lo silenció forzosamente
+                    if (video.muted) { // Si el navegador forzó el muteo
+                         video.muted = false; // Intentar desmutear
+                         video.volume = 0.5; // Y poner un volumen razonable
+                    } else if (video.volume === 0) { // Si el volumen está en 0 pero no está muted explícitamente
+                        video.volume = 0.5; // Poner un volumen razonable
+                    }
+                    updateVolumeIcon(); // Actualizar el ícono de volumen
                 });
             });
 
@@ -232,6 +268,7 @@
                 console.error("HLS.js error:", data);
                 if (data.fatal) {
                     hideLoader();
+                    playOverlay.style.display = 'flex'; // Muestra el botón de play en caso de error fatal
                     switch(data.type) {
                         case Hls.ErrorTypes.NETWORK_ERROR:
                             console.log("fatal network error, trying to recover");
@@ -252,33 +289,61 @@
             video.addEventListener('playing', hideLoader);
             video.addEventListener('waiting', showLoader);
             video.addEventListener('loadedmetadata', function() {
-                video.play().catch(e => {
+                video.play().then(() => {
+                    // Si el autoplay funcionó (incluyendo el audio), ocultamos el botón de play
+                    playOverlay.style.display = 'none';
+                    hideLoader(); // Esto asegurará que el video se muestre
+                }).catch(e => {
                     console.error("Autoplay prevented (native):", e);
-                    // Si el autoplay es bloqueado por el navegador, lo mostramos sin loader y con controles.
-                    // Y establecemos el volumen predeterminado si no está mutado.
                     hideLoader();
-                    video.volume = 0.5; // O el volumen que desees por defecto
+                    playOverlay.style.display = 'flex'; // Muestra el botón de play para interacción manual
+                    if (video.muted) { 
+                        video.muted = false;
+                        video.volume = 0.5;
+                    } else if (video.volume === 0) {
+                        video.volume = 0.5;
+                    }
                     updateVolumeIcon();
                 });
             });
-            video.addEventListener('error', hideLoader);
+            video.addEventListener('error', () => {
+                hideLoader();
+                playOverlay.style.display = 'flex'; // Muestra el botón de play en caso de error
+            });
         } else {
             console.error('Tu navegador no soporta HLS.');
             hideLoader();
+            playOverlay.style.display = 'flex'; // Muestra el botón de play si HLS no es soportado
         }
 
         video.addEventListener('loadedmetadata', updateOverlayPosition);
         window.addEventListener('resize', updateOverlayPosition);
 
-        // --- Lógica para el Control de Volumen Personalizado (ajustado para el estado inicial) ---
-        // Al inicio, configuramos el rango de volumen al volumen actual del video
-        // (que por defecto debería ser el volumen no mutado del navegador, o 1 si no se especifica)
-        volumeRange.value = video.volume;
-        updateVolumeIcon(); // Actualiza el ícono basado en el volumen inicial
+        // --- NUEVO: Manejador de clic para el botón de Play del overlay ---
+        playOverlay.addEventListener('click', () => {
+            video.play().then(() => {
+                playOverlay.style.display = 'none'; // Oculta el botón de play si se reproduce exitosamente
+            }).catch(e => {
+                console.error("Manual play failed:", e);
+                // Si la reproducción manual falla (muy raro, pero posible), el botón de play permanece.
+            });
+        });
+
+        // Configuración inicial del volumen y del icono
+        // Intentar establecer un volumen por defecto, si no está ya silenciado por el navegador.
+        // Si el navegador permite autoplay pero lo silencia, 'video.muted' será true.
+        // Si el navegador bloquea autoplay, 'video.paused' será true.
+        if (video.muted) {
+            volumeRange.value = 0; // Si el video está mutado al inicio (por navegador), el slider a 0
+        } else {
+            video.volume = 0.5; // Establecer un volumen inicial por defecto si no está mutado
+            volumeRange.value = video.volume;
+        }
+        updateVolumeIcon(); // Actualizar el icono de volumen según el estado inicial
 
         volumeRange.addEventListener('input', function() {
             video.volume = this.value;
-            video.muted = (this.value === '0'); // Mutea si el rango está en 0
+            video.muted = (this.value === '0'); 
             updateVolumeIcon();
         });
 
@@ -287,8 +352,6 @@
             if (video.muted) {
                 volumeRange.value = 0;
             } else {
-                // Si desmuteamos y el volumen estaba en 0, lo ponemos a 0.5 (o un valor deseado)
-                // Si no, restauramos el volumen previo (video.volume ya debería tenerlo)
                 volumeRange.value = video.volume === 0 ? 0.5 : video.volume;
                 video.volume = volumeRange.value;
             }
