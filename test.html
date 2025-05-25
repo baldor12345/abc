@@ -97,11 +97,53 @@
         }
 
         /* --- Estilos para el Overlay Negro Adaptable --- */
-        #overlay {
+        /*#overlay {
             position: absolute;
             background-color: red;
-            z-index: 2; /* Asegura que esté por encima del video */
+            z-index: 2;
+        }*/
+        #overlay {
+            position: absolute;
+            background-color: black;
+            color: white; /* Color del texto "EN VIVO" */
+            font-weight: bold; /* Opcional: para que el texto sea más impactante */
+            text-align: center; /* Centra el texto horizontalmente */
             /* top, left, width, height se establecerán en JavaScript */
+            z-index: 2;
+        
+            /* Propiedades Flexbox para centrar el contenido (el span) */
+            display: flex;
+            justify-content: center; /* Centrar horizontalmente */
+            align-items: center;     /* Centrar verticalmente */
+            overflow: hidden; /* Importante para que el texto no se salga del rectángulo */
+        }
+        
+        #overlay span {
+            /* Ajusta el tamaño de la fuente para que se adapte al contenedor */
+            /* Usamos 'vh' o 'vw' para que la fuente sea relativa al viewport,
+               o podemos usar 'calc' para una adaptación más precisa.
+               Una estrategia común es un font-size grande y luego text-overflow. */
+            font-size: 2.5vw; /* Empieza con un tamaño relativo al ancho del viewport */
+            white-space: nowrap; /* Evita que el texto se rompa en varias líneas */
+            /* Puedes ajustar el '2.5vw' para que el texto sea más grande o pequeño inicialmente.
+               Para que sea más exacto al tamaño del cuadro negro, podríamos calcularlo con JS
+               o usar una combinación de vw/vh. Para una adaptación real, text-overflow es útil. */
+        
+            /* Para que el texto se "adapte" si es muy largo, puedes usar: */
+            /* text-overflow: ellipsis; */ /* Si el texto no cabe, muestra "..." */
+            /* Pero como es "EN VIVO", es corto y normalmente no se recorta */
+        }
+        
+        /* Considera un media query para ajustar el tamaño de fuente en pantallas muy pequeñas o grandes */
+        @media (max-width: 600px) {
+            #overlay span {
+                font-size: 4vw; /* Un poco más grande en móviles */
+            }
+        }
+        @media (min-width: 1200px) {
+            #overlay span {
+                font-size: 1.8vw; /* Un poco más pequeño en pantallas grandes si no quieres que sea gigantesco */
+            }
         }
     </style>
 </head>
@@ -117,7 +159,7 @@
             <input type="range" id="volumeRange" min="0" max="1" step="0.01" value="0">
         </div>
 
-        <div id="overlay">EN VIVO</div>
+        <div id="overlay"><span>EN VIVO</span></div>
     </div>
 
     <script>
