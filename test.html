@@ -97,53 +97,25 @@
         }
 
         /* --- Estilos para el Overlay Negro Adaptable --- */
-        /*#overlay {
-            position: absolute;
-            background-color: red;
-            z-index: 2;
-        }*/
         #overlay {
             position: absolute;
             background-color: black;
             color: white; /* Color del texto "EN VIVO" */
             font-weight: bold; /* Opcional: para que el texto sea más impactante */
-            text-align: center; /* Centra el texto horizontalmente */
-            /* top, left, width, height se establecerán en JavaScript */
+            /* Ya no es necesario text-align: center; con flexbox */
             z-index: 2;
-        
+            
             /* Propiedades Flexbox para centrar el contenido (el span) */
-            display: flex;
+            display: flex; /* Asegura que el contenedor es un flex container */
             justify-content: center; /* Centrar horizontalmente */
             align-items: center;     /* Centrar verticalmente */
             overflow: hidden; /* Importante para que el texto no se salga del rectángulo */
         }
         
         #overlay span {
-            /* Ajusta el tamaño de la fuente para que se adapte al contenedor */
-            /* Usamos 'vh' o 'vw' para que la fuente sea relativa al viewport,
-               o podemos usar 'calc' para una adaptación más precisa.
-               Una estrategia común es un font-size grande y luego text-overflow. */
-            font-size: 2.5vw; /* Empieza con un tamaño relativo al ancho del viewport */
-            white-space: nowrap; /* Evita que el texto se rompa en varias líneas */
-            /* Puedes ajustar el '2.5vw' para que el texto sea más grande o pequeño inicialmente.
-               Para que sea más exacto al tamaño del cuadro negro, podríamos calcularlo con JS
-               o usar una combinación de vw/vh. Para una adaptación real, text-overflow es útil. */
-        
-            /* Para que el texto se "adapte" si es muy largo, puedes usar: */
-            /* text-overflow: ellipsis; */ /* Si el texto no cabe, muestra "..." */
-            /* Pero como es "EN VIVO", es corto y normalmente no se recorta */
-        }
-        
-        /* Considera un media query para ajustar el tamaño de fuente en pantallas muy pequeñas o grandes */
-        @media (max-width: 600px) {
-            #overlay span {
-                font-size: 4vw; /* Un poco más grande en móviles */
-            }
-        }
-        @media (min-width: 1200px) {
-            #overlay span {
-                font-size: 1.8vw; /* Un poco más pequeño en pantallas grandes si no quieres que sea gigantesco */
-            }
+            /* Estas propiedades se establecerán con JavaScript para adaptarse */
+            /* Quitar font-size y white-space: nowrap de aquí */
+            display: block; /* Asegura que el span pueda tomar las dimensiones que le dé JS */
         }
     </style>
 </head>
@@ -168,17 +140,18 @@
         const volumeRange = document.getElementById('volumeRange');
         const loadingSpinner = document.getElementById('loadingSpinner');
         const customControls = document.getElementById('customControls');
-        const overlay = document.getElementById('overlay'); // Referencia al overlay
+        const overlay = document.getElementById('overlay');
+        const overlayTextSpan = overlay.querySelector('span'); // Referencia al span dentro del overlay
         const hlsSource = 'https://live-evg1.tv360.bitel.com.pe/bitel/americatv/playlist.m3u8';
 
         // --- Configuración de la posición y tamaño del overlay (como porcentajes del video original) ---
         // Estos valores son cruciales. Necesitas ajustarlos según la posición real de la zona roja.
         // Son porcentajes del *ancho y alto intrínseco del video* (no del reproductor ni de la pantalla).
         const OVERLAY_CONFIG = {
-            relativeLeft: 0.054,  // 5% del ancho del video desde la izquierda
-            relativeTop: 0.054,   // 10% del alto del video desde la parte superior
-            relativeWidth: 0.048, // 20% del ancho del video
-            relativeHeight: 0.075 // 15% del alto del video
+            relativeLeft: 0.054,  // 5.4% del ancho del video desde la izquierda
+            relativeTop: 0.054,   // 5.4% del alto del video desde la parte superior
+            relativeWidth: 0.048, // 4.8% del ancho del video
+            relativeHeight: 0.075 // 7.5% del alto del video
         };
 
         // Función para mostrar/ocultar el spinner y los controles
@@ -193,7 +166,8 @@
             loadingSpinner.classList.add('hidden');
             video.style.opacity = '1';
             customControls.classList.add('visible');
-            overlay.style.display = 'block'; // Muestra el overlay una vez que el video está visible
+            // CAMBIO: Usar 'flex' aquí para habilitar el centrado de Flexbox
+            overlay.style.display = 'flex'; 
             updateOverlayPosition(); // Asegura que el overlay se posicione correctamente
         }
 
@@ -238,6 +212,31 @@
             overlay.style.top = `${overlayTopPx}px`;
             overlay.style.width = `${overlayWidthPx}px`;
             overlay.style.height = `${overlayHeightPx}px`;
+
+            // --- Novedad: Calcular y aplicar el tamaño de la fuente ---
+            if (overlayTextSpan) {
+                // Empezamos con un tamaño de fuente basado en la altura del overlay
+                // Ajusta este multiplicador (e.g., 0.6, 0.7, 0.8) para que el texto se vea bien.
+                // 0.7 suele ser un buen punto de partida.
+                let newFontSize = overlayHeightPx * 0.7; 
+                overlayTextSpan.style.whiteSpace = 'nowrap'; // Evita saltos de línea para la medición
+
+                // Aplica el tamaño inicial de la fuente para poder medir el ancho del texto
+                overlayTextSpan.style.fontSize = `${newFontSize}px`;
+
+                // Si el texto es más ancho que el overlay, reducimos el tamaño de la fuente
+                // O si el texto es más alto (menos común con 'nowrap' y 'flex'), también.
+                if (overlayTextSpan.scrollWidth > overlayWidthPx || overlayTextSpan.scrollHeight > overlayHeightPx) {
+                    // Calcula un factor de escala para ajustar el texto
+                    const widthScale = overlayWidthPx / overlayTextSpan.scrollWidth;
+                    const heightScale = overlayHeightPx / overlayTextSpan.scrollHeight;
+                    
+                    // Elige el factor de escala más pequeño para asegurar que quepa en ambas dimensiones
+                    // Multiplica por un pequeño buffer (0.95) para un pequeño margen y evitar el corte exacto.
+                    newFontSize = newFontSize * Math.min(widthScale, heightScale) * 0.95; 
+                    overlayTextSpan.style.fontSize = `${newFontSize}px`; // Aplica el tamaño final
+                }
+            }
         }
 
         // --- HLS.js Initialization ---
@@ -292,9 +291,7 @@
         }
 
         // --- Eventos para redimensionar y posicionar el overlay ---
-        // Se llama cuando los metadatos del video (incluyendo sus dimensiones intrínsecas) estén cargados
         video.addEventListener('loadedmetadata', updateOverlayPosition);
-        // Se llama cada vez que la ventana del navegador cambia de tamaño
         window.addEventListener('resize', updateOverlayPosition);
 
 
