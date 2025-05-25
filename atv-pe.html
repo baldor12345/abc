@@ -30,7 +30,7 @@
             height: 100%;
             object-fit: contain;
             background-color: black;
-            opacity: 0;
+            opacity: 0; /* Inicialmente oculto */
             transition: opacity 0.5s ease-in-out;
         }
         
@@ -111,18 +111,43 @@
         #overlay span {
             display: block;
         }
+
+        /* --- NUEVO: Estilos para el overlay del botón de Play --- */
+        #playOverlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: none; /* Inicialmente oculto */
+            justify-content: center;
+            align-items: center;
+            background-color: rgba(0, 0, 0, 0.5); /* Fondo semi-transparente */
+            z-index: 12; /* Asegura que esté por encima del video y otros elementos */
+            cursor: pointer;
+            color: white;
+            font-size: 60px; /* Tamaño del icono */
+        }
     </style>
 </head>
 <body>
 
     <div id="videoContainer">
-        <video id="videoPlayer" preload="metadata" autoplay></video>
+        <video id="videoPlayer" preload="metadata" autoplay></video> 
+
         <div id="loadingSpinner"></div>
         <div id="customControls">
             <button id="volumeButton">🔊</button>
             <input type="range" id="volumeRange" min="0" max="1" step="0.01" value="0">
         </div>
         <div id="overlay"><span>EN VIVO</span></div>
+        
+        <div id="playOverlay">
+            <svg fill="#FFFFFF" height="60" viewBox="0 0 24 24" width="60" xmlns="http://www.w3.org/2000/svg">
+                <path d="M8 5v14l11-7z"/>
+                <path d="M0 0h24v24H0z" fill="none"/>
+            </svg>
+        </div>
     </div>
 
     <script>
@@ -133,6 +158,7 @@
         const customControls = document.getElementById('customControls');
         const overlay = document.getElementById('overlay');
         const overlayTextSpan = overlay.querySelector('span');
+        const playOverlay = document.getElementById('playOverlay'); // NUEVO: Referencia al overlay de play
         const hlsSource = 'https://alba-pe-atv-atv.stream.mediatiquestream.com/index.m3u8';
         
         /*Medidas del cuadro*/
@@ -148,14 +174,16 @@
             video.style.opacity = '0';
             customControls.classList.remove('visible');
             overlay.style.display = 'none';
+            playOverlay.style.display = 'none'; // Asegura que el botón de play esté oculto mientras carga
         }
 
         function hideLoader() {
             loadingSpinner.classList.add('hidden');
-            video.style.opacity = '1';
+            video.style.opacity = '1'; // IMPORTANTE: Hacer el video visible
             customControls.classList.add('visible');
             overlay.style.display = 'flex'; 
             updateOverlayPosition();
+            // No ocultamos playOverlay aquí, ya que podría necesitar mostrarse si el autoplay falló.
         }
 
         function updateOverlayPosition() {
@@ -195,10 +223,8 @@
             overlay.style.height = `${overlayHeightPx}px`;
 
             if (overlayTextSpan) {
-                let newFontSize = overlayHeightPx * 0.7; 
+                let newFontSize = overlayHeightPx * 0.7;
                 overlayTextSpan.style.whiteSpace = 'nowrap';
-
-                // Aplica el tamaño inicial de la fuente para poder medir el ancho del texto
                 overlayTextSpan.style.fontSize = `${newFontSize}px`;
 
                 if (overlayTextSpan.scrollWidth > overlayWidthPx || overlayTextSpan.scrollHeight > overlayHeightPx) {
@@ -218,17 +244,33 @@
             video.addEventListener('playing', hideLoader);
             video.addEventListener('waiting', showLoader);
 
+            // Importante: El evento 'loadedmetadata' es un buen momento para intentar reproducir y mostrar el video
             hls.on(Hls.Events.MANIFEST_PARSED, function() {
-                video.play().catch(e => {
+                 console.log('HLS MANIFEST_PARSED');
+                video.play().then(() => {
+                    console.log('Video playing via autoplay (HLS)');
+                    playOverlay.style.display = 'none'; // Oculta el overlay si se reproduce
+                    hideLoader(); // Asegura que el video sea visible y los controles se muestren
+                }).catch(e => {
                     console.error("Autoplay prevented (HLS.js):", e);
-                    hideLoader();
+                    hideLoader(); // Hace el video visible y muestra controles
+                    playOverlay.style.display = 'flex'; // Muestra el botón de play para interacción manual
+                    // Si el autoplay falla, asegúrate de que el volumen esté listo para cuando el usuario haga clic.
+                    if (video.muted) { 
+                         video.muted = false; // Intentar desmutear (si el navegador lo permite)
+                         video.volume = 0.5; // Y poner un volumen razonable
+                    } else if (video.volume === 0) {
+                        video.volume = 0.5;
+                    }
+                    updateVolumeIcon(); // Actualizar el ícono de volumen
                 });
             });
 
             hls.on(Hls.Events.ERROR, function (event, data) {
                 console.error("HLS.js error:", data);
+                hideLoader(); // Muestra el video y controles incluso con error
+                playOverlay.style.display = 'flex'; // Muestra el botón de play en caso de error fatal
                 if (data.fatal) {
-                    hideLoader();
                     switch(data.type) {
                         case Hls.ErrorTypes.NETWORK_ERROR:
                             console.log("fatal network error, trying to recover");
@@ -249,26 +291,66 @@
             video.addEventListener('playing', hideLoader);
             video.addEventListener('waiting', showLoader);
             video.addEventListener('loadedmetadata', function() {
-                video.play().catch(e => {
+                console.log('Native HLS loadedmetadata');
+                video.play().then(() => {
+                    console.log('Video playing via autoplay (Native)');
+                    playOverlay.style.display = 'none'; // Oculta el overlay si se reproduce
+                    hideLoader(); // Asegura que el video sea visible y los controles se muestren
+                }).catch(e => {
                     console.error("Autoplay prevented (native):", e);
-                    hideLoader();
+                    hideLoader(); // Hace el video visible y muestra controles
+                    playOverlay.style.display = 'flex'; // Muestra el botón de play para interacción manual
+                    if (video.muted) { 
+                        video.muted = false;
+                        video.volume = 0.5;
+                    } else if (video.volume === 0) {
+                        video.volume = 0.5;
+                    }
+                    updateVolumeIcon();
                 });
             });
-            video.addEventListener('error', hideLoader);
+            video.addEventListener('error', () => {
+                console.error("Native video error");
+                hideLoader();
+                playOverlay.style.display = 'flex'; // Muestra el botón de play en caso de error
+            });
         } else {
             console.error('Tu navegador no soporta HLS.');
-            hideLoader();
+            hideLoader(); // Asegura que el video sea visible y controles se muestren
+            playOverlay.style.display = 'flex'; // Muestra el botón de play si HLS no es soportado
         }
+
+        // Event listener para el nuevo overlay de play
+        playOverlay.addEventListener('click', () => {
+            console.log('Play overlay clicked. Attempting to play video.');
+            video.play().then(() => {
+                console.log('Video played manually.');
+                playOverlay.style.display = 'none'; // Oculta el botón de play si se reproduce exitosamente
+                // Opcional: Si el video ya estaba visible, no necesitas llamar hideLoader() de nuevo,
+                // pero no hace daño.
+                hideLoader(); 
+            }).catch(e => {
+                console.error("Manual play failed:", e);
+                // Si la reproducción manual falla (muy raro, pero posible), el botón de play permanece.
+            });
+        });
 
         video.addEventListener('loadedmetadata', updateOverlayPosition);
         window.addEventListener('resize', updateOverlayPosition);
 
+        // Inicialización del volumen y del icono
+        // Siempre intenta establecer un volumen por defecto para que no inicie en 0 si no está muted forzosamente.
+        video.volume = 0.5; // Establecer un volumen inicial por defecto
         volumeRange.value = video.volume;
-        updateVolumeIcon();
+        updateVolumeIcon(); 
+        
+        // Es una buena práctica llamar a showLoader al principio para mostrar el spinner
+        // antes de que Hls.js o el video nativo comiencen a cargar.
+        showLoader(); 
 
         volumeRange.addEventListener('input', function() {
             video.volume = this.value;
-            video.muted = (this.value === '0');
+            video.muted = (this.value === '0'); 
             updateVolumeIcon();
         });
 
@@ -277,6 +359,7 @@
             if (video.muted) {
                 volumeRange.value = 0;
             } else {
+                // Si el video estaba muteado y no tiene volumen, lo ponemos a 0.5 al desmutear.
                 volumeRange.value = video.volume === 0 ? 0.5 : video.volume;
                 video.volume = volumeRange.value;
             }
