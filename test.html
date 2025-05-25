@@ -119,7 +119,7 @@
         <div id="loadingSpinner"></div>
         <div id="customControls">
             <button id="volumeButton">🔊</button>
-            <input type="range" id="volumeRange" min="0" max="1" step="0.01" value="1">
+            <input type="range" id="volumeRange" min="0" max="1" step="0.01" value="0">
         </div>
         <div id="overlay"><span>EN VIVO</span></div>
     </div>
@@ -131,44 +131,38 @@
         const loadingSpinner = document.getElementById('loadingSpinner');
         const customControls = document.getElementById('customControls');
         const overlay = document.getElementById('overlay');
-        const overlayTextSpan = overlay.querySelector('span'); // Referencia al span dentro del overlay
+        const overlayTextSpan = overlay.querySelector('span');
         const hlsSource = 'https://live-evg1.tv360.bitel.com.pe/bitel/americatv/playlist.m3u8';
-
-        // --- Configuración de la posición y tamaño del overlay (como porcentajes del video original) ---
-        // Estos valores son cruciales. Necesitas ajustarlos según la posición real de la zona roja.
-        // Son porcentajes del *ancho y alto intrínseco del video* (no del reproductor ni de la pantalla).
+        
+        /*Medidas del cuadro*/
         const OVERLAY_CONFIG = {
-            relativeLeft: 0.054,  // 5.4% del ancho del video desde la izquierda
-            relativeTop: 0.054,   // 5.4% del alto del video desde la parte superior
-            relativeWidth: 0.048, // 4.8% del ancho del video
-            relativeHeight: 0.075 // 7.5% del alto del video
+            relativeLeft: 0.054,
+            relativeTop: 0.054,
+            relativeWidth: 0.048,
+            relativeHeight: 0.075
         };
 
-        // Función para mostrar/ocultar el spinner y los controles
         function showLoader() {
             loadingSpinner.classList.remove('hidden');
             video.style.opacity = '0';
             customControls.classList.remove('visible');
-            overlay.style.display = 'none'; // Oculta el overlay mientras carga
+            overlay.style.display = 'none';
         }
 
         function hideLoader() {
             loadingSpinner.classList.add('hidden');
             video.style.opacity = '1';
             customControls.classList.add('visible');
-            // CAMBIO: Usar 'flex' aquí para habilitar el centrado de Flexbox
             overlay.style.display = 'flex'; 
-            updateOverlayPosition(); // Asegura que el overlay se posicione correctamente
+            updateOverlayPosition();
         }
 
-        // Función para calcular y aplicar la posición del overlay
         function updateOverlayPosition() {
             if (!video.videoWidth || !video.videoHeight) {
-                // El video aún no tiene sus dimensiones intrínsecas cargadas
                 return;
             }
 
-            const videoContainerRect = video.getBoundingClientRect(); // Obtiene las dimensiones y posición del elemento <video>
+            const videoContainerRect = video.getBoundingClientRect();
             const playerWidth = videoContainerRect.width;
             const playerHeight = videoContainerRect.height;
             const videoAspectRatio = video.videoWidth / video.videoHeight;
@@ -176,60 +170,45 @@
 
             let renderedVideoWidth;
             let renderedVideoHeight;
-            let offsetX = 0; // Espacio horizontal de las barras negras
-            let offsetY = 0; // Espacio vertical de las barras negras
+            let offsetX = 0;
+            let offsetY = 0;
 
             if (playerAspectRatio > videoAspectRatio) {
-                // Hay barras negras a los lados (pillarboxing)
                 renderedVideoHeight = playerHeight;
                 renderedVideoWidth = playerHeight * videoAspectRatio;
                 offsetX = (playerWidth - renderedVideoWidth) / 2;
             } else {
-                // Hay barras negras arriba y abajo (letterboxing)
                 renderedVideoWidth = playerWidth;
                 renderedVideoHeight = playerWidth / videoAspectRatio;
                 offsetY = (playerHeight - renderedVideoHeight) / 2;
             }
 
-            // Calcula la posición y tamaño del overlay en píxeles
             const overlayLeftPx = offsetX + (OVERLAY_CONFIG.relativeLeft * renderedVideoWidth);
             const overlayTopPx = offsetY + (OVERLAY_CONFIG.relativeTop * renderedVideoHeight);
             const overlayWidthPx = OVERLAY_CONFIG.relativeWidth * renderedVideoWidth;
             const overlayHeightPx = OVERLAY_CONFIG.relativeHeight * renderedVideoHeight;
 
-            // Aplica los estilos al elemento overlay
             overlay.style.left = `${overlayLeftPx}px`;
             overlay.style.top = `${overlayTopPx}px`;
             overlay.style.width = `${overlayWidthPx}px`;
             overlay.style.height = `${overlayHeightPx}px`;
 
-            // --- Novedad: Calcular y aplicar el tamaño de la fuente ---
             if (overlayTextSpan) {
-                // Empezamos con un tamaño de fuente basado en la altura del overlay
-                // Ajusta este multiplicador (e.g., 0.6, 0.7, 0.8) para que el texto se vea bien.
-                // 0.7 suele ser un buen punto de partida.
                 let newFontSize = overlayHeightPx * 0.7; 
-                overlayTextSpan.style.whiteSpace = 'nowrap'; // Evita saltos de línea para la medición
+                overlayTextSpan.style.whiteSpace = 'nowrap';
 
                 // Aplica el tamaño inicial de la fuente para poder medir el ancho del texto
                 overlayTextSpan.style.fontSize = `${newFontSize}px`;
 
-                // Si el texto es más ancho que el overlay, reducimos el tamaño de la fuente
-                // O si el texto es más alto (menos común con 'nowrap' y 'flex'), también.
                 if (overlayTextSpan.scrollWidth > overlayWidthPx || overlayTextSpan.scrollHeight > overlayHeightPx) {
-                    // Calcula un factor de escala para ajustar el texto
                     const widthScale = overlayWidthPx / overlayTextSpan.scrollWidth;
                     const heightScale = overlayHeightPx / overlayTextSpan.scrollHeight;
-                    
-                    // Elige el factor de escala más pequeño para asegurar que quepa en ambas dimensiones
-                    // Multiplica por un pequeño buffer (0.95) para un pequeño margen y evitar el corte exacto.
                     newFontSize = newFontSize * Math.min(widthScale, heightScale) * 0.95; 
-                    overlayTextSpan.style.fontSize = `${newFontSize}px`; // Aplica el tamaño final
+                    overlayTextSpan.style.fontSize = `${newFontSize}px`;
                 }
             }
         }
 
-        // --- HLS.js Initialization ---
         if (Hls.isSupported()) {
             const hls = new Hls();
             hls.loadSource(hlsSource);
@@ -280,12 +259,9 @@
             hideLoader();
         }
 
-        // --- Eventos para redimensionar y posicionar el overlay ---
         video.addEventListener('loadedmetadata', updateOverlayPosition);
         window.addEventListener('resize', updateOverlayPosition);
 
-
-        // --- Lógica para el Control de Volumen Personalizado (sin cambios) ---
         volumeRange.value = video.volume;
         updateVolumeIcon();
 
