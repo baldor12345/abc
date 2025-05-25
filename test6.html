@@ -1,1 +1,232 @@
-<iframe allowfullscreen="true" scrolling="no" src="https://domainparatodo.online/dash.html?get=aHR0cHM6Ly9zdHJlYW1keC5sYXQvbWVtZnMvZTlhMWVlM2ItYzlkZS00NWE0LTg2MTQtODM4M2RjYjIzMTUxLm0zdTg=" allow="encrypted-media" width="100%" height="100%" frameborder="0"></iframe>
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reproductor de Video con Carga</title>
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+    <style>
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: black;
+        }
+
+        #videoContainer {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: black;
+        }
+
+        #videoPlayer {
+            width: 100%;
+            height: 100%;
+            object-fit: contain; /* O 'cover' si prefieres que cubra todo, aunque se recorte */
+            background-color: black;
+            /* Inicialmente ocultamos el video para que solo se vea el loader */
+            opacity: 0;
+            transition: opacity 0.5s ease-in-out; /* Transición suave para cuando aparezca */
+        }
+
+        /* Estilos para los controles personalizados */
+        #customControls {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: rgba(0, 0, 0, 0.6);
+            padding: 10px 20px;
+            border-radius: 5px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            z-index: 10;
+            /* Inicialmente ocultamos los controles */
+            opacity: 0;
+            transition: opacity 0.3s ease-in-out;
+            pointer-events: none; /* Deshabilita interacciones mientras está oculto */
+        }
+
+        #customControls.visible {
+            opacity: 1;
+            pointer-events: auto; /* Habilita interacciones cuando es visible */
+        }
+
+        #volumeButton {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 0;
+            line-height: 1;
+        }
+
+        #volumeRange {
+            width: 100px;
+            height: 5px;
+        }
+
+        /* --- Estilos para el Spinner de Carga --- */
+        #loadingSpinner {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 50px;
+            height: 50px;
+            border: 5px solid rgba(255, 255, 255, 0.3); /* Color claro para el borde */
+            border-top: 5px solid white; /* Borde superior más brillante para el efecto de giro */
+            border-radius: 50%; /* Hace que sea un círculo */
+            animation: spin 1s linear infinite; /* Animación de giro */
+            z-index: 11; /* Asegura que esté por encima de todo lo demás */
+        }
+
+        @keyframes spin {
+            0% { transform: translate(-50%, -50%) rotate(0deg); }
+            100% { transform: translate(-50%, -50%) rotate(360deg); }
+        }
+
+        #loadingSpinner.hidden {
+            display: none; /* Oculta el spinner cuando ya no se necesita */
+        }
+    </style>
+</head>
+<body>
+
+    <div id="videoContainer">
+        <video id="videoPlayer" preload="metadata" autoplay muted></video>
+
+        <div id="loadingSpinner"></div>
+
+        <div id="customControls">
+            <button id="volumeButton">🔊</button>
+            <input type="range" id="volumeRange" min="0" max="1" step="0.01" value="0">
+        </div>
+    </div>
+
+    <script>
+        const video = document.getElementById('videoPlayer');
+        const volumeButton = document.getElementById('volumeButton');
+        const volumeRange = document.getElementById('volumeRange');
+        const loadingSpinner = document.getElementById('loadingSpinner'); // Referencia al spinner
+        const customControls = document.getElementById('customControls'); // Referencia a los controles
+        // Asegúrate de que esta URL sea la correcta y estable para tu transmisión
+        const hlsSource = 'https://m7.merichunidya.com:999/hls/wsmkmlfeed01.m3u8?md5=D9ksFGFjY5-zDzuzyUe0QQ&expires=1748154159';
+
+        // Función para mostrar/ocultar el spinner y los controles
+        function showLoader() {
+            loadingSpinner.classList.remove('hidden');
+            video.style.opacity = '0'; // Oculta el video
+            customControls.classList.remove('visible'); // Oculta los controles
+        }
+
+        function hideLoader() {
+            loadingSpinner.classList.add('hidden');
+            video.style.opacity = '1'; // Muestra el video
+            customControls.classList.add('visible'); // Muestra los controles
+        }
+
+        // --- HLS.js Initialization ---
+        if (Hls.isSupported()) {
+            const hls = new Hls();
+            hls.loadSource(hlsSource);
+            hls.attachMedia(video);
+
+            // Ocultar el loader cuando el video empieza a reproducirse
+            video.addEventListener('playing', hideLoader);
+            // Mostrar el loader si el video se detiene por buffering
+            video.addEventListener('waiting', showLoader);
+
+            hls.on(Hls.Events.MANIFEST_PARSED, function() {
+                video.play().catch(e => {
+                    console.error("Autoplay prevented (HLS.js):", e);
+                    // Si el autoplay es bloqueado, ocultamos el loader para no dejarlo indefinidamente
+                    hideLoader();
+                    // Puedes mostrar un mensaje al usuario para que haga clic en play
+                });
+            });
+
+            hls.on(Hls.Events.ERROR, function (event, data) {
+                console.error("HLS.js error:", data);
+                // Si hay un error fatal, ocultamos el loader para no dejarlo indefinidamente
+                if (data.fatal) {
+                    hideLoader();
+                    switch(data.type) {
+                        case Hls.ErrorTypes.NETWORK_ERROR:
+                            console.log("fatal network error, trying to recover");
+                            hls.startLoad();
+                            break;
+                        case Hls.ErrorTypes.MEDIA_ERROR:
+                            console.log("fatal media error, trying to recover");
+                            hls.recoverMediaError();
+                            break;
+                        default:
+                            hls.destroy();
+                            break;
+                    }
+                }
+            });
+        } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+            video.src = hlsSource;
+            video.addEventListener('playing', hideLoader);
+            video.addEventListener('waiting', showLoader);
+            video.addEventListener('loadedmetadata', function() {
+                video.play().catch(e => {
+                    console.error("Autoplay prevented (native):", e);
+                    hideLoader(); // Si el autoplay es bloqueado, ocultamos el loader
+                });
+            });
+            // Ocultar loader si el video no puede cargarse nativamente
+            video.addEventListener('error', hideLoader);
+        } else {
+            console.error('Tu navegador no soporta HLS.');
+            hideLoader(); // Ocultar loader si el navegador no soporta nada
+        }
+
+        // --- Lógica para el Control de Volumen Personalizado (sin cambios) ---
+        volumeRange.value = video.volume;
+        updateVolumeIcon();
+
+        volumeRange.addEventListener('input', function() {
+            video.volume = this.value;
+            video.muted = (this.value === '0');
+            updateVolumeIcon();
+        });
+
+        volumeButton.addEventListener('click', function() {
+            video.muted = !video.muted;
+            if (video.muted) {
+                volumeRange.value = 0;
+            } else {
+                volumeRange.value = video.volume === 0 ? 0.5 : video.volume;
+                video.volume = volumeRange.value;
+            }
+            updateVolumeIcon();
+        });
+
+        video.addEventListener('volumechange', function() {
+            volumeRange.value = video.volume;
+            updateVolumeIcon();
+        });
+
+        function updateVolumeIcon() {
+            if (video.muted || video.volume === 0) {
+                volumeButton.textContent = '🔇';
+            } else if (video.volume < 0.5) {
+                volumeButton.textContent = '🔉';
+            } else {
+                volumeButton.textContent = '🔊';
+            }
+        }
+    </script>
+
+</body>
+</html>
